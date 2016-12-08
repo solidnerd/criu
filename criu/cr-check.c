@@ -49,6 +49,7 @@
 #include "cr_options.h"
 #include "libnetlink.h"
 #include "net.h"
+#include "linux/userfaultfd.h"
 
 static char *feature_name(int (*func)());
 
@@ -1025,6 +1026,23 @@ static int check_tcp_window(void)
 	return 0;
 }
 
+static int check_uffd(void)
+{
+	unsigned long features = UFFD_FEATURE_EVENT_FORK |
+		UFFD_FEATURE_EVENT_REMAP |
+		UFFD_FEATURE_EVENT_MADVDONTNEED;
+
+	if (kerndat_uffd(true))
+		return -1;
+
+	if ((kdat.uffd_features & features) != features) {
+		pr_err("Userfaultfd missing essential features\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 static int (*chk_feature)(void);
 
 /*
@@ -1133,6 +1151,7 @@ int cr_check(void)
 	 */
 	if (opts.check_experimental_features) {
 		ret |= check_autofs();
+		ret |= check_uffd();
 	}
 
 	print_on_level(DEFAULT_LOGLEVEL, "%s\n", ret ? CHECK_MAYBE : CHECK_GOOD);
@@ -1206,6 +1225,7 @@ static struct feature_list feature_list[] = {
 	{ "cgroupns", check_cgroupns },
 	{ "autofs", check_autofs },
 	{ "tcp_half_closed", check_tcp_halt_closed },
+	{ "lazy_pages", check_uffd },
 	{ NULL, NULL },
 };
 
