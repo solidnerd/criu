@@ -1044,6 +1044,39 @@ static int check_uffd(void)
 	return 0;
 }
 
+static int check_userns(void)
+{
+	int ret;
+	unsigned long size = 0;
+
+	ret = access("/proc/self/ns/user", F_OK);
+	if (ret) {
+		pr_perror("No userns proc file");
+		return -1;
+	}
+
+	ret = prctl(PR_SET_MM, PR_SET_MM_MAP_SIZE, (unsigned long)&size, 0, 0);
+	if (ret < 0) {
+		pr_perror("prctl: PR_SET_MM_MAP_SIZE is not supported");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int check_loginuid(void)
+{
+	if (kerndat_loginuid(false) < 0)
+		return -1;
+
+	if (!kdat.has_loginuid) {
+		pr_warn("Loginuid restore is OFF.\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 static int check_compat_cr(void)
 {
 	if (kdat_compat_sigreturn_test())
@@ -1153,6 +1186,8 @@ int cr_check(void)
 		ret |= check_cgroupns();
 		ret |= check_tcp_window();
 		ret |= check_tcp_halt_closed();
+		ret |= check_userns();
+		ret |= check_loginuid();
 	}
 
 	/*
@@ -1181,39 +1216,6 @@ static int check_tun(void)
 	 * since C/R effectively works, just not for TUN.
 	 */
 	return check_tun_cr(-1);
-}
-
-static int check_userns(void)
-{
-	int ret;
-	unsigned long size = 0;
-
-	ret = access("/proc/self/ns/user", F_OK);
-	if (ret) {
-		pr_perror("No userns proc file");
-		return -1;
-	}
-
-	ret = prctl(PR_SET_MM, PR_SET_MM_MAP_SIZE, (unsigned long)&size, 0, 0);
-	if (ret < 0) {
-		pr_perror("prctl: PR_SET_MM_MAP_SIZE is not supported");
-		return -1;
-	}
-
-	return 0;
-}
-
-static int check_loginuid(void)
-{
-	if (kerndat_loginuid(false) < 0)
-		return -1;
-
-	if (!kdat.has_loginuid) {
-		pr_warn("Loginuid restore is OFF.\n");
-		return -1;
-	}
-
-	return 0;
 }
 
 struct feature_list {
