@@ -432,7 +432,8 @@ static int process_async_reads(struct page_read *pr)
 
 		ret = preadv(fd, piov->to, piov->nr, piov->from);
 		if (ret != piov->end - piov->from) {
-			pr_err("Can't read async pr bytes\n");
+			pr_err("Can't read async pr bytes (%d / %lu read, %lu off, %d iovs)\n",
+					ret, piov->end - piov->from, piov->from, piov->nr);
 			return -1;
 		}
 
